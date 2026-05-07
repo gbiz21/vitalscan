@@ -51,10 +51,14 @@ and structurally complete. To finish the assignment, the team needs to:
 
 ## Quick start (local dev)
 
+> **Python version:** the backend pins mediapipe 0.10.x which requires Python
+> 3.12 (no 3.13 wheel is published yet). On macOS:
+> `brew install python@3.12` then use `python3.12 -m venv venv`.
+
 ```bash
 # Terminal 1 — backend
 cd backend
-python -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate    # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
@@ -68,8 +72,14 @@ npm run dev
 Open http://localhost:5173 — the dashboard will pull biomarker data from
 http://localhost:8000/scan.
 
-By default the backend returns mock data. To run the real pipeline, send
-a video file to `/scan` (the frontend webcam capture does this automatically).
+The dashboard exposes three ways to feed the pipeline:
+- **Rescan** — refreshes mock data (no video needed)
+- **Scan live** — opens your webcam for a 30-second capture
+- **Upload video** — pick any `.mp4`/`.webm`/`.mov`/`.avi`/`.mkv` file from disk
+
+By default the backend returns mock data (`VITALSCAN_USE_MOCK=true`). To run
+the real rPPG pipeline on uploaded/recorded video, set `VITALSCAN_USE_MOCK=false`
+when starting uvicorn.
 
 ## Quick start (Docker, for homelab deploy)
 

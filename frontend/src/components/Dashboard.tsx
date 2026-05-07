@@ -68,6 +68,7 @@ export function Dashboard() {
       <ActionButtons
         onRescan={runMockScan}
         onScanLive={() => setShowWebcam(true)}
+        onUpload={(file) => runVideoScan(file)}
         loading={loading}
       />
 

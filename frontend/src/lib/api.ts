@@ -8,7 +8,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export async function scanVideo(videoBlob: Blob): Promise<BiomarkerResponse> {
   const formData = new FormData();
-  formData.append("video", videoBlob, "scan.webm");
+  // For File objects, preserve the original filename (extension matters for the
+  // backend's allowed-extension check). For raw webcam Blobs, fall back to webm.
+  const filename = videoBlob instanceof File ? videoBlob.name : "scan.webm";
+  formData.append("video", videoBlob, filename);
 
   const response = await fetch(`${API_BASE}/scan`, {
     method: "POST",
