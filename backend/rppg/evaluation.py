@@ -122,6 +122,50 @@ def load_scamps_videos(scamps_root: Path, max_videos: int = 50,
     return samples
 
 
+UBFC_FPS = 30.0  # UBFC-rPPG Dataset 2 webcam capture rate
+
+
+def load_ubfc_videos(ubfc_root: Path, max_videos: int = 50) -> List[VideoSample]:
+    """Load UBFC-rPPG Dataset 2 subjects (vid.avi + ground_truth.txt per folder).
+
+    ground_truth.txt format (per UBFC readme):
+      Line 1: PPG signal (space-separated floats)
+      Line 2: Heart rate trace (space-separated, one per frame)
+      Line 3: Timestep in seconds (scientific notation)
+    """
+    samples: List[VideoSample] = []
+    # Filter to complete pairs first, then cap — otherwise alphabetical sort
+    # of subject{N} can fill max_videos with incomplete folders before any
+    # complete one is reached.
+    candidates = [
+        d for d in ubfc_root.glob("subject*")
+        if d.is_dir() and (d / "vid.avi").exists() and (d / "ground_truth.txt").exists()
+    ]
+    # Natural sort by subject number so subject5 comes before subject42.
+    candidates.sort(key=lambda d: int(d.name.replace("subject", "")))
+    subject_dirs = candidates[:max_videos]
+
+    for subj_dir in subject_dirs:
+        video_path = subj_dir / "vid.avi"
+        gt_path = subj_dir / "ground_truth.txt"
+        try:
+            with gt_path.open() as f:
+                lines = f.read().strip().splitlines()
+            ppg = np.fromstring(lines[0], sep=" ")
+            gt_bpm = _ppg_to_bpm(ppg, fps=UBFC_FPS)
+            samples.append(
+                VideoSample(
+                    video_path=str(video_path),
+                    ground_truth_bpm=gt_bpm,
+                    sample_id=subj_dir.name,
+                )
+            )
+            print(f"  staged {subj_dir.name}: GT={gt_bpm:.1f} BPM")
+        except Exception as e:
+            print(f"  skipped {subj_dir.name}: {e}", file=sys.stderr)
+    return samples
+
+
 def load_generic_videos(root: Path, max_videos: int = 50) -> List[VideoSample]:
     """Generic loader for in-house datasets: *.mp4 paired with same-name *.npy PPG."""
     samples: List[VideoSample] = []
@@ -142,10 +186,13 @@ def load_generic_videos(root: Path, max_videos: int = 50) -> List[VideoSample]:
 
 
 def load_dataset(root: Path, max_videos: int = 50) -> List[VideoSample]:
-    """Auto-detect SCAMPS (.mat) vs generic (.mp4 + .npy) layout."""
+    """Auto-detect SCAMPS (.mat), UBFC (subject*/vid.avi), or generic mp4+npy layout."""
     if any(root.glob("*.mat")):
         print(f"Detected SCAMPS .mat layout under {root}")
         return load_scamps_videos(root, max_videos=max_videos)
+    if any(p.is_dir() and (p / "vid.avi").exists() for p in root.glob("subject*")):
+        print(f"Detected UBFC subject*/vid.avi layout under {root}")
+        return load_ubfc_videos(root, max_videos=max_videos)
     if any(root.glob("*.mp4")):
         print(f"Detected generic .mp4 + .npy layout under {root}")
         return load_generic_videos(root, max_videos=max_videos)
