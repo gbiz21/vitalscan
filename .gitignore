@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Datasets (too large to commit)
+data/
+datasets/
+*.mp4
+*.avi
+!backend/tests/fixtures/*.mp4
+
+# Models
+*.pt
+*.pth
+*.h5
+
+# Logs
+*.log

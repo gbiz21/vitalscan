@@ -1,0 +1,45 @@
+services:
+  backend:
+    build: ./backend
+    container_name: vitalscan-backend
+    restart: unless-stopped
+    environment:
+      # Set to false once the team is ready to run the real rPPG pipeline
+      VITALSCAN_USE_MOCK: ${VITALSCAN_USE_MOCK:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    networks:
+      - vitalscan
+      # Uncomment if your Traefik network is external:
+      # - traefik
+    labels:
+      # Traefik labels — adjust the Host() rule to your homelab domain
+      - "traefik.enable=false"  # backend is reached via the frontend nginx proxy
+      # If you want to expose the API directly, set enable=true and configure:
+      # - "traefik.http.routers.vitalscan-api.rule=Host(`api.vitalscan.local`)"
+      # - "traefik.http.routers.vitalscan-api.entrypoints=websecure"
+      # - "traefik.http.routers.vitalscan-api.tls=true"
+      # - "traefik.http.services.vitalscan-api.loadbalancer.server.port=8000"
+
+  frontend:
+    build: ./frontend
+    container_name: vitalscan-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - vitalscan
+      # - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vitalscan.rule=Host(`vitalscan.local`)"
+      - "traefik.http.routers.vitalscan.entrypoints=websecure"
+      - "traefik.http.routers.vitalscan.tls=true"
+      - "traefik.http.services.vitalscan.loadbalancer.server.port=80"
+      - "traefik.docker.network=vitalscan"
+
+networks:
+  vitalscan:
+    driver: bridge
+  # If using an external Traefik network on your homelab:
+  # traefik:
+  #   external: true
