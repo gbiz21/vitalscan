@@ -2,19 +2,31 @@
 #
 # Deployed to /opt/traefik/dynamic/vitalscan.yml on the homelab traefik host.
 # Traefik watches the dynamic dir and hot-reloads on changes.
-#
-# Hostname uses the *.lab.bkre8tive.com wildcard cert that's already mounted
-# in Traefik. The OPNsense wildcard A record (*.lab.bkre8tive.com -> 10.10.10.6)
-# means no per-app DNS entry is needed.
 
 http:
   routers:
+    # HTTPS router (websecure entrypoint, uses the *.lab.bkre8tive.com wildcard cert).
     vitalscan:
       rule: "Host(`vitalscan.lab.bkre8tive.com`)"
       entryPoints:
         - websecure
       service: vitalscan
       tls: {}
+
+    # HTTP router that 301-redirects to HTTPS so plain http://vitalscan... works.
+    vitalscan-http:
+      rule: "Host(`vitalscan.lab.bkre8tive.com`)"
+      entryPoints:
+        - web
+      service: vitalscan
+      middlewares:
+        - vitalscan-https-redirect
+
+  middlewares:
+    vitalscan-https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
 
   services:
     vitalscan:
