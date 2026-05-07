@@ -16,6 +16,9 @@ dist/
 .env
 .env.local
 
+# Cloudflare tunnel credentials (contains TunnelSecret — never commit)
+deploy/cloudflared/*.json
+
 # IDE
 .vscode/
 .idea/

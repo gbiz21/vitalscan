@@ -2,6 +2,8 @@
 
 AIT 500 Course Project · Westcliff University · Group 1
 
+**Live:** https://vitalscan.bkre8tive.com — published via a named Cloudflare Tunnel from the homelab.
+
 This repo contains the full Group 1 deliverable: a Python rPPG pipeline that
 extracts heart rate, HRV, and stress index from a 30-second facial video,
 exposed as a FastAPI `/scan` endpoint, and consumed by a React dashboard.
@@ -40,7 +42,7 @@ The biomarker JSON matches the shared API contract from the project brief:
 | 1     | ✅     | React UI with mock biomarker data                     |
 | 2     | ✅     | FastAPI backend with mock `/scan` endpoint            |
 | 3     | 🟡     | Real rPPG pipeline (algorithms in place, needs data)  |
-| 4     | ✅     | Docker + Traefik deployment                           |
+| 4     | ✅     | Docker + Cloudflare Tunnel deployment (live)          |
 | 5     | ✅     | Browser webcam capture                                |
 
 **Phase 3 status:** the algorithm code (face detection, POS, HRV) is written
@@ -69,9 +71,6 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — the dashboard will pull biomarker data from
-http://localhost:8000/scan.
-
 The dashboard exposes three ways to feed the pipeline:
 - **Rescan** — refreshes mock data (no video needed)
 - **Scan live** — opens your webcam for a 30-second capture
@@ -83,17 +82,21 @@ when starting uvicorn.
 
 ## Quick start (Docker, for homelab deploy)
 
-Production target: **https://vitalscan.bkre8tive.com** via Traefik + Let's
-Encrypt on the homelab. Full step-by-step in [DEPLOY.md](DEPLOY.md).
+Production: **https://vitalscan.bkre8tive.com** — published via a named
+Cloudflare Tunnel from the homelab. No public IP, no port forwarding,
+TLS terminated at the Cloudflare edge. Full step-by-step in [DEPLOY.md](DEPLOY.md).
 
 ```bash
-# On the homelab host, after rsync of the repo:
-docker network create traefik   # one-time, if not already created
+# On the homelab host, after rsync of the repo + scp of the tunnel
+# credentials JSON to deploy/cloudflared/:
 docker compose up -d --build
+docker compose logs -f cloudflared    # watch for "Registered tunnel connection"
 ```
 
-The `docker-compose.yml` is already wired with the right Host rule, the
-HTTP→HTTPS redirect, and the external `traefik` network.
+The `docker-compose.yml` runs three services (backend, frontend, cloudflared)
+on an internal bridge network. The `cloudflared` service mounts
+`deploy/cloudflared/config.yml` (tunnel UUID + ingress rule) and the
+matching credentials JSON (gitignored, copied separately).
 
 ## Project structure
 
@@ -116,7 +119,12 @@ vitalscan/
 │   │   ├── evaluation.py       Task 4 — MAE/RMSE on SCAMPS
 │   │   └── mock.py             Mock data generator
 │   └── Dockerfile
-└── docker-compose.yml     Both services + Traefik labels
+├── deploy/
+│   └── cloudflared/
+│       ├── config.yml          Tunnel UUID + ingress rule (committed)
+│       └── <UUID>.json         TunnelSecret credentials (gitignored)
+├── docker-compose.yml          backend + frontend + cloudflared
+└── DEPLOY.md                   Three-command homelab deploy
 ```
 
 ## Group 1 task ownership (suggested)

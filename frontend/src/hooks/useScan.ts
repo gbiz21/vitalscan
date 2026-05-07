@@ -9,11 +9,41 @@ export interface ScanState {
   lastScanAt: Date | null;
 }
 
+const STORAGE_KEY = "vitalscan:lastScan";
+
+interface PersistedScan {
+  data: BiomarkerResponse;
+  lastScanAt: string;
+}
+
+function loadPersisted(): { data: BiomarkerResponse; lastScanAt: Date } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedScan;
+    return { data: parsed.data, lastScanAt: new Date(parsed.lastScanAt) };
+  } catch {
+    return null;
+  }
+}
+
+function persist(data: BiomarkerResponse, lastScanAt: Date) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ data, lastScanAt: lastScanAt.toISOString() } satisfies PersistedScan),
+    );
+  } catch {
+    // localStorage unavailable (private mode, quota) — degrade silently
+  }
+}
+
+const persisted = loadPersisted();
 const initialState: ScanState = {
-  data: null,
+  data: persisted?.data ?? null,
   loading: false,
   error: null,
-  lastScanAt: null,
+  lastScanAt: persisted?.lastScanAt ?? null,
 };
 
 export function useScan() {
@@ -23,7 +53,9 @@ export function useScan() {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const data = await fetchMockScan();
-      setState({ data, loading: false, error: null, lastScanAt: new Date() });
+      const lastScanAt = new Date();
+      persist(data, lastScanAt);
+      setState({ data, loading: false, error: null, lastScanAt });
     } catch (e) {
       const error = e instanceof Error ? e.message : "Scan failed";
       setState((s) => ({ ...s, loading: false, error }));
@@ -34,16 +66,21 @@ export function useScan() {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const data = await scanVideo(videoBlob);
-      setState({ data, loading: false, error: null, lastScanAt: new Date() });
+      const lastScanAt = new Date();
+      persist(data, lastScanAt);
+      setState({ data, loading: false, error: null, lastScanAt });
     } catch (e) {
       const error = e instanceof Error ? e.message : "Scan failed";
       setState((s) => ({ ...s, loading: false, error }));
     }
   }, []);
 
-  // Run an initial mock scan on mount so the dashboard never starts empty
+  // Seed a mock scan only on first-ever load so the dashboard isn't empty.
+  // Persisted scans hydrate from localStorage and must not be overwritten on refresh.
   useEffect(() => {
-    runMockScan();
+    if (initialState.data === null) {
+      runMockScan();
+    }
   }, [runMockScan]);
 
   return { ...state, runMockScan, runVideoScan };

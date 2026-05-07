@@ -7,7 +7,7 @@ services:
       # Set to "false" once SCAMPS/UBFC data is staged on the host and you
       # want the real rPPG pipeline to run instead of returning mock data.
       VITALSCAN_USE_MOCK: ${VITALSCAN_USE_MOCK:-true}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalscan.lab.bkre8tive.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalscan.bkre8tive.com}
     networks:
       - vitalscan-internal
 
@@ -19,27 +19,19 @@ services:
       - backend
     networks:
       - vitalscan-internal
-      # Exposed to Traefik via the existing traefik_default network. The route
-      # itself is defined in the Traefik file provider at:
-      #   /opt/traefik/dynamic/vitalscan.yml  (on the homelab traefik host)
-      # Docker labels are NOT used because this Traefik instance runs with
-      # --providers.file.directory only, no Docker provider.
-      - traefik_default
 
-  # Public-facing tunnel for the AIT 500 demo. Quick-tunnel mode does NOT
-  # require a Cloudflare account or port forwarding — it just publishes a
-  # https://*.trycloudflare.com URL that proxies to vitalscan-frontend:80.
-  # Read the URL from `docker logs vitalscan-cloudflared` after first start.
-  # Trade-offs:
-  #   - URL changes every container restart
-  #   - Cloudflare may apply quick-tunnel rate limits
-  # For a stable URL on vitalscan.bkre8tive.com, upgrade to a named tunnel:
-  # see deploy/cloudflared-named-tunnel.md.
+  # Named Cloudflare Tunnel publishing https://vitalscan.bkre8tive.com.
+  # Tunnel UUID and ingress rules live in deploy/cloudflared/config.yml.
+  # The matching credentials JSON (TunnelSecret) is gitignored — copy it
+  # to deploy/cloudflared/ on the homelab via scp before bringing the stack
+  # up. See DEPLOY.md.
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: vitalscan-cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate --url http://vitalscan-frontend:80
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./deploy/cloudflared:/etc/cloudflared:ro
     depends_on:
       - frontend
     networks:
@@ -48,5 +40,3 @@ services:
 networks:
   vitalscan-internal:
     driver: bridge
-  traefik_default:
-    external: true
