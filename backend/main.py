@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from rppg import generate_mock_biomarkers, run_pipeline
+from rppg import generate_mock_biomarkers
 
 app = FastAPI(
     title="VitalScan rPPG API",
@@ -92,6 +92,9 @@ async def scan(video: UploadFile = File(...)):
                     status_code=413,
                     detail=f"Video too large (max {MAX_VIDEO_SIZE_MB}MB)",
                 )
+
+            # Imported lazily so mock mode does not require cv2 / mediapipe.
+            from rppg.pipeline import run_pipeline
 
             result = run_pipeline(str(tmp_path))
             return result.to_contract_dict()

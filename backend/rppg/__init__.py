@@ -28,7 +28,10 @@ The radio analogy: the heartbeat is broadcasting on a specific frequency
 reading what station is playing.
 """
 
-from .pipeline import run_pipeline, BiomarkerResult
 from .mock import generate_mock_biomarkers
 
-__all__ = ["run_pipeline", "BiomarkerResult", "generate_mock_biomarkers"]
+# `pipeline` (and its cv2 / mediapipe deps) is imported lazily by callers so
+# that mock mode works without the heavy CV stack installed. Use:
+#   from rppg.pipeline import run_pipeline, BiomarkerResult
+
+__all__ = ["generate_mock_biomarkers"]
