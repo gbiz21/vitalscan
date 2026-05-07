@@ -24,6 +24,20 @@ export function Dashboard() {
         error={error}
       />
 
+      {error && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-status-danger/30 bg-status-danger/10 p-4">
+          <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 flex-shrink-0 text-status-danger" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" />
+            <line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" />
+          </svg>
+          <div className="flex-1 text-sm text-status-danger">
+            <p className="font-medium">Scan failed</p>
+            <p className="mt-1 text-status-danger/80">{error}</p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 grid gap-4 md:grid-cols-[260px_1fr] rounded-2xl border border-ink-800 bg-ink-900/60 p-6 backdrop-blur-sm">
         <BodyFigure biomarkers={biomarkers} />
 

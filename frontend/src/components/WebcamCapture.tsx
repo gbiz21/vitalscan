@@ -7,30 +7,46 @@ interface WebcamCaptureProps {
 
 const SCAN_DURATION_SECONDS = 30;
 
-/**
- * Phase 5 — Browser webcam capture for live face scanning.
- *
- * Uses MediaRecorder to capture a 30-second video clip from the user's
- * webcam, then posts it to /scan as a Blob. This is the "live scan"
- * feature the assignment hints at in the deliverables.
- *
- * Note: webcam access requires a secure context (HTTPS or localhost).
- * For homelab Traefik deployment, ensure the cert is valid.
- */
+// Probe MIME types in order of preference. Chrome/Edge support video/webm;
+// Safari only supports video/mp4 (with the .mp4 extension).
+const PREFERRED_MIME_TYPES = [
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm",
+  "video/mp4;codecs=h264",
+  "video/mp4",
+];
+
+function pickSupportedMimeType(): { mimeType: string; ext: string } | null {
+  for (const mt of PREFERRED_MIME_TYPES) {
+    if (MediaRecorder.isTypeSupported(mt)) {
+      return { mimeType: mt, ext: mt.startsWith("video/mp4") ? ".mp4" : ".webm" };
+    }
+  }
+  return null;
+}
+
 export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [secondsLeft, setSecondsLeft] = useState(SCAN_DURATION_SECONDS);
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function setupCamera() {
+      // Webcam needs HTTPS or localhost; bail early with a clear message.
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("Webcam requires HTTPS. Open this page over HTTPS or localhost.");
+        return;
+      }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width: 640, height: 480 },
@@ -41,11 +57,11 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
           return;
         }
         streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (e) {
-        setError("Camera access denied. Allow camera permissions and try again.");
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        setCameraReady(true);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(`Camera access failed: ${msg}`);
         console.error(e);
       }
     }
@@ -53,35 +69,71 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
     setupCamera();
     return () => {
       cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
   const startRecording = () => {
-    if (!streamRef.current) return;
+    if (!streamRef.current) {
+      setError("Camera not ready yet. Wait a moment and try again.");
+      return;
+    }
+
+    const supported = pickSupportedMimeType();
+    if (!supported) {
+      setError(
+        "Your browser cannot record video (no MediaRecorder mime type supported). " +
+          "Use Chrome, Edge, or Firefox — or use Upload video instead.",
+      );
+      return;
+    }
 
     chunksRef.current = [];
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: "video/webm" });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(streamRef.current, { mimeType: supported.mimeType });
+    } catch (e) {
+      setError(`MediaRecorder failed to start: ${e instanceof Error ? e.message : e}`);
+      return;
+    }
     recorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
+      if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    recorder.onerror = (e) => {
+      setError(`Recording error: ${(e as ErrorEvent).message ?? "unknown"}`);
+      setRecording(false);
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      onCapture(blob);
+      const blob = new Blob(chunksRef.current, { type: supported.mimeType });
+      // Guard against the 422-empty-upload bug — if no chunks, surface the
+      // problem instead of POSTing a 0-byte field that the API rejects.
+      if (blob.size < 1024) {
+        setError(
+          `Recording produced only ${blob.size} bytes. Try Chrome/Firefox, or use Upload video instead.`,
+        );
+        return;
+      }
+      // Wrap in a File so the upload preserves the right extension
+      // (api.ts uses File.name to set the filename for the multipart field).
+      const file = new File([blob], `scan${supported.ext}`, { type: supported.mimeType });
+      onCapture(file);
     };
 
-    recorder.start();
+    // Pass timeslice so dataavailable fires every second — we still get a
+    // usable blob even if the user cancels mid-recording.
+    recorder.start(1000);
     setRecording(true);
     setSecondsLeft(SCAN_DURATION_SECONDS);
 
-    // Countdown
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setSecondsLeft((s) => {
         if (s <= 1) {
-          clearInterval(interval);
+          if (intervalRef.current) clearInterval(intervalRef.current);
           recorder.stop();
           setRecording(false);
           return 0;
@@ -126,13 +178,17 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
 
         <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-ink-400">
-            {recording ? `Recording... ${secondsLeft}s` : "Hold still and look at the camera"}
+            {recording
+              ? `Recording... ${secondsLeft}s`
+              : cameraReady
+                ? "Hold still and look at the camera"
+                : "Starting camera..."}
           </p>
 
           {!recording ? (
             <button
               onClick={startRecording}
-              disabled={!!error}
+              disabled={!!error || !cameraReady}
               className="rounded-lg bg-status-normal px-4 py-2 text-sm font-medium text-ink-950 hover:bg-status-normal/90 disabled:opacity-50"
             >
               Start 30s scan
