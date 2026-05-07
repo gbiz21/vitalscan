@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Status } from "../lib/status";
 import { statusColor, statusLabel } from "../lib/status";
 
@@ -10,13 +11,21 @@ interface ScanHeaderProps {
 
 function timeSince(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 60) return `${Math.max(0, seconds)}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
   return `${Math.floor(minutes / 60)}h ago`;
 }
 
 export function ScanHeader({ status, lastScanAt, loading, error }: ScanHeaderProps) {
+  // Re-render every second so the "Xs ago" timestamp ticks up live.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!lastScanAt) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [lastScanAt]);
+
   const colors = statusColor(status);
 
   let subtitle: string;
