@@ -26,6 +26,25 @@ services:
       # --providers.file.directory only, no Docker provider.
       - traefik_default
 
+  # Public-facing tunnel for the AIT 500 demo. Quick-tunnel mode does NOT
+  # require a Cloudflare account or port forwarding — it just publishes a
+  # https://*.trycloudflare.com URL that proxies to vitalscan-frontend:80.
+  # Read the URL from `docker logs vitalscan-cloudflared` after first start.
+  # Trade-offs:
+  #   - URL changes every container restart
+  #   - Cloudflare may apply quick-tunnel rate limits
+  # For a stable URL on vitalscan.bkre8tive.com, upgrade to a named tunnel:
+  # see deploy/cloudflared-named-tunnel.md.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: vitalscan-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://vitalscan-frontend:80
+    depends_on:
+      - frontend
+    networks:
+      - vitalscan-internal
+
 networks:
   vitalscan-internal:
     driver: bridge
