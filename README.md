@@ -83,12 +83,17 @@ when starting uvicorn.
 
 ## Quick start (Docker, for homelab deploy)
 
+Production target: **https://vitalscan.bkre8tive.com** via Traefik + Let's
+Encrypt on the homelab. Full step-by-step in [DEPLOY.md](DEPLOY.md).
+
 ```bash
-docker compose up -d
+# On the homelab host, after rsync of the repo:
+docker network create traefik   # one-time, if not already created
+docker compose up -d --build
 ```
 
-The `docker-compose.yml` includes Traefik labels — adjust the `Host()` rule
-to your homelab domain.
+The `docker-compose.yml` is already wired with the right Host rule, the
+HTTP→HTTPS redirect, and the external `traefik` network.
 
 ## Project structure
 

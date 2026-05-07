@@ -4,21 +4,17 @@ services:
     container_name: vitalscan-backend
     restart: unless-stopped
     environment:
-      # Set to false once the team is ready to run the real rPPG pipeline
+      # Set to "false" once SCAMPS/UBFC data is staged on the host and you
+      # want the real rPPG pipeline to run instead of returning mock data.
       VITALSCAN_USE_MOCK: ${VITALSCAN_USE_MOCK:-true}
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      # Tighten this for production — listing the dashboard origin only.
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalscan.bkre8tive.com}
     networks:
-      - vitalscan
-      # Uncomment if your Traefik network is external:
-      # - traefik
+      - vitalscan-internal
+    # Backend is reached via the frontend nginx proxy at /api — no Traefik
+    # router needed unless you want to expose the API directly.
     labels:
-      # Traefik labels — adjust the Host() rule to your homelab domain
-      - "traefik.enable=false"  # backend is reached via the frontend nginx proxy
-      # If you want to expose the API directly, set enable=true and configure:
-      # - "traefik.http.routers.vitalscan-api.rule=Host(`api.vitalscan.local`)"
-      # - "traefik.http.routers.vitalscan-api.entrypoints=websecure"
-      # - "traefik.http.routers.vitalscan-api.tls=true"
-      # - "traefik.http.services.vitalscan-api.loadbalancer.server.port=8000"
+      - "traefik.enable=false"
 
   frontend:
     build: ./frontend
@@ -27,19 +23,35 @@ services:
     depends_on:
       - backend
     networks:
-      - vitalscan
-      # - traefik
+      - vitalscan-internal
+      - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.vitalscan.rule=Host(`vitalscan.local`)"
+      - "traefik.docker.network=traefik"
+
+      # HTTPS router on websecure entrypoint with Let's Encrypt resolver.
+      # The resolver name "letsencrypt" must match what your Traefik
+      # static config defines — adjust if yours uses a different name.
+      - "traefik.http.routers.vitalscan.rule=Host(`vitalscan.bkre8tive.com`)"
       - "traefik.http.routers.vitalscan.entrypoints=websecure"
       - "traefik.http.routers.vitalscan.tls=true"
+      - "traefik.http.routers.vitalscan.tls.certresolver=letsencrypt"
       - "traefik.http.services.vitalscan.loadbalancer.server.port=80"
-      - "traefik.docker.network=vitalscan"
+
+      # HTTP -> HTTPS redirect so http://vitalscan.bkre8tive.com upgrades.
+      - "traefik.http.routers.vitalscan-http.rule=Host(`vitalscan.bkre8tive.com`)"
+      - "traefik.http.routers.vitalscan-http.entrypoints=web"
+      - "traefik.http.routers.vitalscan-http.middlewares=https-redirect"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
 
 networks:
-  vitalscan:
+  # Internal network for backend <-> frontend traffic only.
+  vitalscan-internal:
     driver: bridge
-  # If using an external Traefik network on your homelab:
-  # traefik:
-  #   external: true
+  # External network shared with Traefik. Create once on the host with:
+  #   docker network create traefik
+  # If your Traefik stack already uses a different network name (e.g. "web",
+  # "proxy"), change this to match and update the traefik.docker.network label.
+  traefik:
+    external: true
