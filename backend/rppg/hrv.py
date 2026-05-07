@@ -102,8 +102,9 @@ def compute_stress_index(
     lf_mask = (freqs >= lf_band[0]) & (freqs < lf_band[1])
     hf_mask = (freqs >= hf_band[0]) & (freqs < hf_band[1])
 
-    lf_power = np.trapezoid(psd[lf_mask], freqs[lf_mask]) if np.any(lf_mask) else 0.0
-    hf_power = np.trapezoid(psd[hf_mask], freqs[hf_mask]) if np.any(hf_mask) else 1e-9
+    # np.trapezoid is numpy 2.0+; we pin numpy<2 for mediapipe, so use np.trapz.
+    lf_power = np.trapz(psd[lf_mask], freqs[lf_mask]) if np.any(lf_mask) else 0.0
+    hf_power = np.trapz(psd[hf_mask], freqs[hf_mask]) if np.any(hf_mask) else 1e-9
 
     lf_hf_ratio = lf_power / max(hf_power, 1e-9)
 

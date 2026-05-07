@@ -14,6 +14,7 @@ scipy==1.13.1
 
 # Data handling
 pydantic==2.9.2
+h5py==3.12.1   # SCAMPS .mat files are HDF5 v7.3
 
 # Evaluation utilities
 pandas==2.2.3
