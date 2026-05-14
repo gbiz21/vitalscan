@@ -25,12 +25,16 @@ deploy/cloudflared/*.json
 *.swp
 .DS_Store
 
-# Datasets (too large to commit)
-data/
+# Datasets (too large to commit) — exclude everything under data/ by default…
+data/*
 datasets/
 *.mp4
 *.avi
 !backend/tests/fixtures/*.mp4
+
+# …but keep small eval result CSVs (these are deliverable artifacts)
+!data/compare_pos_chrom_*.csv
+!data/eval_*.csv
 
 # Models
 *.pt

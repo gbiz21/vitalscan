@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 490" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+    <style>
+      .title { font-size: 20px; font-weight: 600; fill: #111827; }
+      .subtitle { font-size: 12px; fill: #6B7280; }
+      .lbl { font-size: 12px; font-weight: 600; fill: #111827; }
+      .sub { font-size: 9.5px; fill: #374151; }
+      .out { font-size: 10px; font-weight: 600; }
+      .edge { font-size: 9px; font-style: italic; fill: #6B7280; }
+      .leg { font-size: 10px; fill: #374151; }
+      .leg-title { font-size: 11px; font-weight: 600; fill: #111827; }
+      .footer { font-size: 10px; font-style: italic; fill: #6B7280; }
+      .mono { font-family: ui-monospace, 'SF Mono', monospace; }
+    </style>
+  </defs>
+
+  <text x="640" y="28" text-anchor="middle" class="title">Figure 1 — rPPG Signal Extraction Pipeline</text>
+  <text x="640" y="46" text-anchor="middle" class="subtitle">VitalScan · Group 1 · AIT 500 · MediaPipe FaceMesh → POS → bandpass → FFT / HRV</text>
+
+  <!-- Stage 1: Video input -->
+  <rect x="20" y="190" width="120" height="100" rx="8" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.5"/>
+  <text x="80" y="215" text-anchor="middle" class="lbl">1. Video input</text>
+  <text x="80" y="240" text-anchor="middle" class="sub">30 s · 30 fps</text>
+  <text x="80" y="254" text-anchor="middle" class="sub">~900 frames</text>
+  <text x="80" y="268" text-anchor="middle" class="sub">MP4 · WebM · MOV</text>
+
+  <!-- Stage 2: Face detection -->
+  <rect x="170" y="190" width="120" height="100" rx="8" fill="#EBF2FA" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="230" y="215" text-anchor="middle" class="lbl">2. Face detection</text>
+  <text x="230" y="240" text-anchor="middle" class="sub">MediaPipe</text>
+  <text x="230" y="254" text-anchor="middle" class="sub">FaceMesh</text>
+  <text x="230" y="268" text-anchor="middle" class="sub">468 landmarks / frame</text>
+
+  <!-- Stage 3: ROI extraction -->
+  <rect x="320" y="190" width="120" height="100" rx="8" fill="#EBF2FA" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="380" y="215" text-anchor="middle" class="lbl">3. ROI extraction</text>
+  <text x="380" y="240" text-anchor="middle" class="sub">Forehead +</text>
+  <text x="380" y="254" text-anchor="middle" class="sub">L / R cheek patches</text>
+  <text x="380" y="268" text-anchor="middle" class="sub">strongest rPPG signal</text>
+
+  <!-- Stage 4: RGB time series -->
+  <rect x="470" y="190" width="120" height="100" rx="8" fill="#EBF2FA" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="530" y="215" text-anchor="middle" class="lbl">4. RGB time series</text>
+  <text x="530" y="240" text-anchor="middle" class="sub">mean R, G, B</text>
+  <text x="530" y="254" text-anchor="middle" class="sub">per ROI, per frame</text>
+  <text x="530" y="268" text-anchor="middle" class="sub">T × 3 array</text>
+
+  <!-- Stage 5: POS algorithm -->
+  <rect x="620" y="190" width="120" height="100" rx="8" fill="#E6F4EE" stroke="#1D9E75" stroke-width="1.5"/>
+  <text x="680" y="215" text-anchor="middle" class="lbl">5. POS algorithm</text>
+  <text x="680" y="240" text-anchor="middle" class="sub">project RGB onto</text>
+  <text x="680" y="254" text-anchor="middle" class="sub">plane ⟂ skin tone</text>
+  <text x="680" y="268" text-anchor="middle" class="sub">→ 1-D pulse S(t)</text>
+
+  <!-- Stage 6: Butterworth bandpass -->
+  <rect x="770" y="190" width="120" height="100" rx="8" fill="#E6F4EE" stroke="#1D9E75" stroke-width="1.5"/>
+  <text x="830" y="215" text-anchor="middle" class="lbl">6. Butterworth</text>
+  <text x="830" y="231" text-anchor="middle" class="lbl">bandpass</text>
+  <text x="830" y="254" text-anchor="middle" class="sub">0.7 – 4.0 Hz</text>
+  <text x="830" y="268" text-anchor="middle" class="sub">≈ 60 – 210 BPM</text>
+
+  <!-- Stage 7a: FFT -->
+  <rect x="920" y="70" width="170" height="100" rx="8" fill="#FBF1E3" stroke="#BA7517" stroke-width="1.5"/>
+  <text x="1005" y="95" text-anchor="middle" class="lbl">7a. FFT → peak freq</text>
+  <text x="1005" y="120" text-anchor="middle" class="sub">dominant peak in band</text>
+  <text x="1005" y="134" text-anchor="middle" class="sub">peak Hz × 60</text>
+  <text x="1005" y="155" text-anchor="middle" class="out" fill="#BA7517">→ heart_rate (BPM)</text>
+
+  <!-- Stage 7b: Peak detect / IBI -->
+  <rect x="920" y="190" width="170" height="100" rx="8" fill="#FBF1E3" stroke="#BA7517" stroke-width="1.5"/>
+  <text x="1005" y="215" text-anchor="middle" class="lbl">7b. Peak detect → IBI</text>
+  <text x="1005" y="240" text-anchor="middle" class="sub mono">scipy.find_peaks</text>
+  <text x="1005" y="254" text-anchor="middle" class="sub">SDNN of inter-beat ms</text>
+  <text x="1005" y="275" text-anchor="middle" class="out" fill="#BA7517">→ hrv_sdnn (ms)</text>
+
+  <!-- Stage 7c: LF/HF -->
+  <rect x="920" y="310" width="170" height="100" rx="8" fill="#FBF1E3" stroke="#BA7517" stroke-width="1.5"/>
+  <text x="1005" y="335" text-anchor="middle" class="lbl">7c. Welch PSD → LF/HF</text>
+  <text x="1005" y="360" text-anchor="middle" class="sub">LF 0.04 – 0.15 Hz</text>
+  <text x="1005" y="374" text-anchor="middle" class="sub">HF 0.15 – 0.40 Hz</text>
+  <text x="1005" y="395" text-anchor="middle" class="out" fill="#BA7517">→ stress_index (0–1)</text>
+
+  <!-- Stage 8: Biomarker JSON -->
+  <rect x="1120" y="190" width="140" height="100" rx="8" fill="#FCEAEA" stroke="#E24B4A" stroke-width="1.5"/>
+  <text x="1190" y="215" text-anchor="middle" class="lbl">8. Biomarker JSON</text>
+  <text x="1190" y="240" text-anchor="middle" class="sub">returned by</text>
+  <text x="1190" y="254" text-anchor="middle" class="sub mono">POST /scan</text>
+  <text x="1190" y="275" text-anchor="middle" class="sub">→ React dashboard</text>
+
+  <!-- Linear arrows 1→2→3→4→5→6 -->
+  <line x1="140" y1="240" x2="167" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="290" y1="240" x2="317" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="440" y1="240" x2="467" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="590" y1="240" x2="617" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="740" y1="240" x2="767" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Fan out from 6 → 7a, 7b, 7c -->
+  <path d="M 890 240 C 905 240 905 120 917 120" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <line x1="890" y1="240" x2="917" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 890 240 C 905 240 905 360 917 360" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="903" y="183" text-anchor="middle" class="edge">filtered S_bp(t)</text>
+
+  <!-- Fan in to 8 -->
+  <path d="M 1090 120 C 1105 120 1105 240 1117 240" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <line x1="1090" y1="240" x2="1117" y2="240" stroke="#374151" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 1090 360 C 1105 360 1105 240 1117 240" stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Legend -->
+  <g transform="translate(20, 425)">
+    <text x="0" y="0" class="leg-title">Color legend — Task grouping</text>
+    <rect x="0" y="10" width="14" height="14" rx="3" fill="#EBF2FA" stroke="#4A90D9" stroke-width="1.2"/>
+    <text x="22" y="21" class="leg">Task 1 — Computer vision (face + ROI)</text>
+    <rect x="290" y="10" width="14" height="14" rx="3" fill="#E6F4EE" stroke="#1D9E75" stroke-width="1.2"/>
+    <text x="312" y="21" class="leg">Task 2 — Signal processing (POS + bandpass)</text>
+    <rect x="640" y="10" width="14" height="14" rx="3" fill="#FBF1E3" stroke="#BA7517" stroke-width="1.2"/>
+    <text x="662" y="21" class="leg">Task 3 — Biomarker extraction (HRV + stress)</text>
+    <rect x="990" y="10" width="14" height="14" rx="3" fill="#FCEAEA" stroke="#E24B4A" stroke-width="1.2"/>
+    <text x="1012" y="21" class="leg">API contract output</text>
+  </g>
+
+  <text x="640" y="475" text-anchor="middle" class="footer">Implementation in backend/rppg/ · End-to-end UBFC-rPPG MAE = 4.10 BPM on 42 real subjects</text>
+</svg>

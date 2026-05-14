@@ -1,16 +1,20 @@
 # Pipeline Evaluation Results
 
-**Date:** 2026-05-06 / 2026-05-07
-**Pipeline:** MediaPipe FaceMesh ROI → POS algorithm → Butterworth bandpass → FFT peak
+**Date:** 2026-05-06 → 2026-05-14
+**Pipeline:** MediaPipe FaceMesh ROI → POS / CHROM → Butterworth bandpass → FFT peak
 
 ## Headline numbers — for the writeup
 
-| Dataset | Type | N | MAE (BPM) | RMSE (BPM) | Within ±1 BPM | Rubric |
+| Dataset | Type | N | Algorithm | MAE (BPM) | RMSE (BPM) | Rubric |
 |---|---|---|---|---|---|---|
-| SCAMPS (Microsoft) | Synthetic | 10 | 28.86 | 38.37 | 4 / 10 | FAIL (synthetic limit) |
-| **UBFC-rPPG (Univ. Bourgogne)** | **Real human** | **42** | **4.10** | **7.83** | **21 / 42 (50%)** | **PASS — stretch credit** |
+| **UBFC-rPPG** | **Real human** | **42** | **POS (ours)** | **4.06** | **7.78** | **PASS** |
+| **UBFC-rPPG** | **Real human** | **42** | **CHROM (baseline)** | **3.86** | **7.35** | **PASS** |
+| SCAMPS | Synthetic | 10 | POS (ours) | 28.85 | 38.50 | FAIL (synthetic limit) |
+| SCAMPS | Synthetic | 10 | CHROM (baseline) | 34.83 | 44.05 | FAIL (synthetic limit) |
 
-The same POS implementation produces vastly different MAE on synthetic vs real data — synthetic data limits the algorithm, not the algorithm itself. **UBFC is the headline number for the writeup.**
+Both classical algorithms pass the rubric on real human data (UBFC, MAE < 10 BPM target). On synthetic SCAMPS data, POS beats CHROM by ~6 BPM — POS's adaptive weighting handles synthetic artifacts better. On real data the two algorithms are statistically tied (within 0.2 BPM MAE).
+
+**UBFC is the headline number for the writeup.** Raw per-video comparison: `data/compare_pos_chrom_ubfc.csv` (POS) and `data/compare_pos_chrom_scamps.csv` (SCAMPS).
 
 ## UBFC-rPPG (full Dataset 2 — 42 subjects)
 
