@@ -25,6 +25,9 @@ deploy/cloudflared/*.json
 *.swp
 .DS_Store
 
+# PowerPoint / Word lockfiles (auto-created while a doc is open)
+~$*
+
 # Datasets (too large to commit) — exclude everything under data/ by default…
 data/*
 datasets/
