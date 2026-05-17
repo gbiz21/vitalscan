@@ -6,9 +6,40 @@ import type { BiomarkerResponse } from "../types/api";
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-export async function scanVideo(videoBlob: Blob): Promise<BiomarkerResponse> {
+// Mirror of backend/main.py:MAX_VIDEO_SIZE_MB. Kept in sync manually — the
+// backend also enforces it, but checking client-side gives instant feedback
+// instead of letting the user wait for a doomed 100+ MB upload.
+export const MAX_VIDEO_SIZE_MB = 100;
+
+export type ScanPhase = "upload" | "processing";
+
+export interface ScanProgress {
+  phase: ScanPhase;
+  uploadedBytes: number;
+  totalBytes: number;
+  /** 0–100 during upload; 100 throughout processing. */
+  percent: number;
+}
+
+function parseErrorBody(text: string): string {
+  let summary = text.slice(0, 300);
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.detail) {
+      summary = typeof parsed.detail === "string"
+        ? parsed.detail
+        : JSON.stringify(parsed.detail);
+    }
+  } catch { /* not JSON, use raw text */ }
+  return summary;
+}
+
+export function scanVideo(
+  videoBlob: Blob,
+  onProgress?: (p: ScanProgress) => void,
+): Promise<BiomarkerResponse> {
   if (!videoBlob || videoBlob.size === 0) {
-    throw new Error("Video is empty (0 bytes). Recording may have failed.");
+    return Promise.reject(new Error("Video is empty (0 bytes). Recording may have failed."));
   }
   const formData = new FormData();
   // For File objects, preserve the original filename (extension matters for the
@@ -16,27 +47,49 @@ export async function scanVideo(videoBlob: Blob): Promise<BiomarkerResponse> {
   const filename = videoBlob instanceof File ? videoBlob.name : "scan.webm";
   formData.append("video", videoBlob, filename);
 
-  const response = await fetch(`${API_BASE}/scan`, {
-    method: "POST",
-    body: formData,
-  });
+  return new Promise<BiomarkerResponse>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/scan`);
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    // FastAPI 422 returns a JSON detail array; surface a readable summary.
-    let summary = text.slice(0, 300);
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed.detail) {
-        summary = typeof parsed.detail === "string"
-          ? parsed.detail
-          : JSON.stringify(parsed.detail);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress({
+          phase: "upload",
+          uploadedBytes: e.loaded,
+          totalBytes: e.total,
+          percent: Math.min(100, Math.round((e.loaded / e.total) * 100)),
+        });
       }
-    } catch { /* not JSON, use raw text */ }
-    throw new Error(`HTTP ${response.status}: ${summary}`);
-  }
+    });
 
-  return response.json();
+    // Upload bytes are flushed — backend is now running the pipeline.
+    xhr.upload.addEventListener("load", () => {
+      onProgress?.({
+        phase: "processing",
+        uploadedBytes: videoBlob.size,
+        totalBytes: videoBlob.size,
+        percent: 100,
+      });
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as BiomarkerResponse);
+        } catch {
+          reject(new Error("Invalid JSON in response"));
+        }
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${parseErrorBody(xhr.responseText)}`));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Network error — could not reach /scan")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+    xhr.addEventListener("timeout", () => reject(new Error("Upload timed out")));
+
+    xhr.send(formData);
+  });
 }
 
 export async function fetchMockScan(): Promise<BiomarkerResponse> {

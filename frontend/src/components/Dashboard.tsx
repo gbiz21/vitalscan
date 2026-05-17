@@ -6,10 +6,11 @@ import { BodyFigure } from "./BodyFigure";
 import { ConditionRiskPanel } from "./ConditionRiskPanel";
 import { MetricCard } from "./MetricCard";
 import { ScanHeader } from "./ScanHeader";
+import { ScanProgress } from "./ScanProgress";
 import { WebcamCapture } from "./WebcamCapture";
 
 export function Dashboard() {
-  const { data, loading, error, lastScanAt, runMockScan, runVideoScan } = useScan();
+  const { data, loading, error, lastScanAt, progress, runMockScan, runVideoScan } = useScan();
   const [showWebcam, setShowWebcam] = useState(false);
 
   const biomarkers = data?.biomarkers ?? null;
@@ -35,6 +36,12 @@ export function Dashboard() {
             <p className="font-medium">Scan failed</p>
             <p className="mt-1 text-status-danger/80">{error}</p>
           </div>
+        </div>
+      )}
+
+      {progress && (
+        <div className="mt-4 rounded-xl border border-ink-800 bg-ink-900/60 p-4 backdrop-blur-sm">
+          <ScanProgress progress={progress} />
         </div>
       )}
 
@@ -71,7 +78,7 @@ export function Dashboard() {
             </>
           ) : (
             <div className="col-span-2 text-center text-ink-400">
-              {loading ? "Scanning..." : "No data"}
+              {loading && !progress ? "Scanning..." : "No data"}
             </div>
           )}
         </div>

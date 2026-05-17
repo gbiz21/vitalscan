@@ -160,7 +160,11 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
           </button>
         </div>
 
-        <div className="mt-4 overflow-hidden rounded-xl bg-black">
+        <div
+          className={`relative mt-4 overflow-hidden rounded-xl bg-black transition-shadow duration-300 ${
+            recording ? "shadow-[0_0_24px_2px_rgba(29,158,117,0.45)] ring-1 ring-status-normal/60" : ""
+          }`}
+        >
           <video
             ref={videoRef}
             autoPlay
@@ -168,6 +172,42 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
             playsInline
             className="aspect-video w-full object-cover"
           />
+
+          {/* Corner viewfinder brackets — dim when idle, brighten when recording */}
+          {cameraReady && !error && (
+            <div
+              aria-hidden
+              className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+                recording ? "opacity-100" : "opacity-50"
+              }`}
+            >
+              <span className="absolute left-3 top-3 h-6 w-6 rounded-tl-sm border-l-2 border-t-2 border-status-normal" />
+              <span className="absolute right-3 top-3 h-6 w-6 rounded-tr-sm border-r-2 border-t-2 border-status-normal" />
+              <span className="absolute bottom-3 left-3 h-6 w-6 rounded-bl-sm border-b-2 border-l-2 border-status-normal" />
+              <span className="absolute bottom-3 right-3 h-6 w-6 rounded-br-sm border-b-2 border-r-2 border-status-normal" />
+            </div>
+          )}
+
+          {/* Sweeping scan line — only during active recording */}
+          {recording && (
+            <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div
+                className="scan-sweep-line h-[2px] w-full bg-gradient-to-r from-transparent via-status-normal to-transparent"
+                style={{ boxShadow: "0 0 8px rgba(29, 158, 117, 0.8)" }}
+              />
+            </div>
+          )}
+
+          {/* REC indicator — top-right, mimics camera UIs */}
+          {recording && (
+            <div
+              aria-label="Recording"
+              className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold tracking-wider text-ink-100 backdrop-blur-sm"
+            >
+              <span className="rec-dot h-1.5 w-1.5 rounded-full bg-status-danger" />
+              REC
+            </div>
+          )}
         </div>
 
         {error && (

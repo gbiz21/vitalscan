@@ -20,7 +20,7 @@ export function ActionButtons({ onRescan, onScanLive, onUpload, loading }: Actio
   };
 
   return (
-    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
       <button
         onClick={onScanLive}
         disabled={loading}
@@ -41,17 +41,6 @@ export function ActionButtons({ onRescan, onScanLive, onUpload, loading }: Actio
           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         Upload video
-      </button>
-
-      <button
-        disabled
-        className="flex items-center justify-center gap-2 rounded-xl border border-ink-800 bg-ink-900 px-4 py-3 text-sm font-medium text-ink-400"
-      >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        History
       </button>
 
       <button
