@@ -137,15 +137,17 @@ vitalscan/
 └── DEPLOY.md                   Three-command homelab deploy
 ```
 
-## Group 1 task ownership (suggested)
+## Group 1 team & task ownership
 
-| Task              | File                       | Owner |
-|-------------------|----------------------------|-------|
-| 1. Face + ROI     | `backend/rppg/face_detection.py` | TBD   |
-| 2. POS + heart rate | `backend/rppg/pos_algorithm.py` | TBD   |
-| 3. HRV + stress   | `backend/rppg/hrv.py`      | TBD   |
-| 4. Evaluation     | `backend/rppg/evaluation.py` | TBD   |
-| API + frontend    | `backend/main.py` + `frontend/` | Germaine |
+| Task                | File / artifact                          | Owner    |
+|---------------------|------------------------------------------|----------|
+| 1. Face + ROI       | `backend/rppg/face_detection.py`         | Daray    |
+| 2. POS + heart rate | `backend/rppg/pos_algorithm.py`          | Daray    |
+| 3. HRV + stress     | `backend/rppg/hrv.py`                    | Daray    |
+| 4. Evaluation       | `backend/rppg/evaluation.py`             | Abner    |
+| Dataset retrieval   | UBFC-rPPG · SCAMPS examples              | Jason    |
+| API + frontend      | `backend/main.py` + `frontend/`          | Germaine |
+| Deployment          | `docker-compose.yml` + Cloudflare Tunnel | Germaine |
 
 ## License
 
