@@ -1,4 +1,6 @@
-import type { Biomarkers, BloodPressure } from "../types/api";
+import type { Biomarkers, BloodPressureValue } from "../types/api";
+
+type BloodPressure = BloodPressureValue;
 
 export type Status = "normal" | "warning" | "danger";
 
@@ -38,10 +40,10 @@ export function classifyBP(bp: BloodPressure): Status {
 
 export function overallStatus(b: Biomarkers): Status {
   const statuses = [
-    classifyHeartRate(b.heart_rate),
-    classifyHRV(b.hrv_sdnn),
-    classifyStress(b.stress_index),
-    classifyBP(b.blood_pressure),
+    classifyHeartRate(b.heart_rate.value),
+    classifyHRV(b.hrv_sdnn.value),
+    classifyStress(b.stress_index.value),
+    classifyBP(b.blood_pressure.value),
   ];
   if (statuses.includes("danger")) return "danger";
   if (statuses.includes("warning")) return "warning";

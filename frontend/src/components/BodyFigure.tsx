@@ -21,16 +21,16 @@ interface BodyFigureProps {
  */
 export function BodyFigure({ biomarkers }: BodyFigureProps) {
   const hrColor = biomarkers
-    ? statusColor(classifyHeartRate(biomarkers.heart_rate)).marker
+    ? statusColor(classifyHeartRate(biomarkers.heart_rate.value)).marker
     : "#5A5A63";
   const hrvColor = biomarkers
-    ? statusColor(classifyHRV(biomarkers.hrv_sdnn)).marker
+    ? statusColor(classifyHRV(biomarkers.hrv_sdnn.value)).marker
     : "#5A5A63";
   const stressColor = biomarkers
-    ? statusColor(classifyStress(biomarkers.stress_index)).marker
+    ? statusColor(classifyStress(biomarkers.stress_index.value)).marker
     : "#5A5A63";
   const bpColor = biomarkers
-    ? statusColor(classifyBP(biomarkers.blood_pressure)).marker
+    ? statusColor(classifyBP(biomarkers.blood_pressure.value)).marker
     : "#5A5A63";
 
   return (

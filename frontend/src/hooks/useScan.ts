@@ -64,7 +64,7 @@ export function useScan() {
     }
   }, []);
 
-  const runVideoScan = useCallback(async (videoBlob: Blob) => {
+  const runVideoScan = useCallback(async (videoBlob: Blob, person?: string): Promise<boolean> => {
     // Reject oversized files before we waste bandwidth — the backend caps at
     // MAX_VIDEO_SIZE_MB, and Cloudflare's tunnel adds its own ~100 MB body cap.
     const sizeMB = videoBlob.size / (1024 * 1024);
@@ -76,7 +76,7 @@ export function useScan() {
         error: `Video is ${sizeMB.toFixed(1)} MB · max ${MAX_VIDEO_SIZE_MB} MB. ` +
                `Trim the clip to ~30 seconds or use the live webcam capture.`,
       }));
-      return;
+      return false;
     }
     // Seed progress at 0% upload so the bar appears immediately, even before
     // the first XHR progress event fires.
@@ -92,15 +92,19 @@ export function useScan() {
       },
     }));
     try {
-      const data = await scanVideo(videoBlob, (progress) => {
-        setState((s) => ({ ...s, progress }));
-      });
+      const data = await scanVideo(
+        videoBlob,
+        (progress) => setState((s) => ({ ...s, progress })),
+        person,
+      );
       const lastScanAt = new Date();
       persist(data, lastScanAt);
       setState({ data, loading: false, error: null, lastScanAt, progress: null });
+      return true;
     } catch (e) {
       const error = e instanceof Error ? e.message : "Scan failed";
       setState((s) => ({ ...s, loading: false, error, progress: null }));
+      return false;
     }
   }, []);
 

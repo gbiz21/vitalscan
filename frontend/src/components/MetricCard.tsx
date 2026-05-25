@@ -14,6 +14,17 @@ interface MetricCardProps {
   value: number | string;
   unit: string;
   kind: "heart_rate" | "hrv" | "stress" | "bp";
+  /** 0–1 confidence the backend assigned to this biomarker. */
+  confidence?: number;
+  /** Optional explanation (e.g. for BP, why it's a placeholder). */
+  note?: string;
+}
+
+/** Map confidence to a 3-tier visual band that pairs with the dashboard palette. */
+function confidenceTier(c: number): { label: string; color: string; bg: string } {
+  if (c >= 0.75) return { label: "High", color: "text-status-normal", bg: "bg-status-normal/15" };
+  if (c >= 0.45) return { label: "Medium", color: "text-status-warning", bg: "bg-status-warning/15" };
+  return { label: "Low", color: "text-status-danger", bg: "bg-status-danger/15" };
 }
 
 const ICONS: Record<MetricCardProps["kind"], ReactNode> = {
@@ -79,15 +90,30 @@ function classifyKind(kind: MetricCardProps["kind"], value: number | string) {
   }
 }
 
-export function MetricCard({ label, value, unit, kind }: MetricCardProps) {
+export function MetricCard({ label, value, unit, kind, confidence, note }: MetricCardProps) {
   const status = classifyKind(kind, value);
   const colors = statusColor(status);
+  const conf = confidence !== undefined ? confidenceTier(confidence) : null;
+  const confPct = confidence !== undefined ? Math.round(confidence * 100) : null;
 
   return (
-    <div className="rounded-xl border border-ink-800 bg-ink-850/50 p-4 transition-colors hover:bg-ink-850 animate-scale-in">
-      <div className="flex items-center gap-2">
-        <span className={colors.fg}>{ICONS[kind]}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-400">{label}</span>
+    <div
+      className="rounded-xl border border-ink-800 bg-ink-850/50 p-4 transition-colors hover:bg-ink-850 animate-scale-in"
+      title={note}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={colors.fg}>{ICONS[kind]}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-ink-400">{label}</span>
+        </div>
+        {conf && confPct !== null && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${conf.bg} ${conf.color}`}
+            title={`Pipeline confidence: ${confPct}%`}
+          >
+            {conf.label} · {confPct}%
+          </span>
+        )}
       </div>
 
       <div className="mt-2 flex items-baseline gap-1.5 tabular">

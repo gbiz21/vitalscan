@@ -37,6 +37,7 @@ function parseErrorBody(text: string): string {
 export function scanVideo(
   videoBlob: Blob,
   onProgress?: (p: ScanProgress) => void,
+  person?: string,
 ): Promise<BiomarkerResponse> {
   if (!videoBlob || videoBlob.size === 0) {
     return Promise.reject(new Error("Video is empty (0 bytes). Recording may have failed."));
@@ -46,6 +47,11 @@ export function scanVideo(
   // backend's allowed-extension check). For raw webcam Blobs, fall back to webm.
   const filename = videoBlob instanceof File ? videoBlob.name : "scan.webm";
   formData.append("video", videoBlob, filename);
+  // Tag the scan with the user's name so it lands in GET /biometrics?person={name}.
+  // Backend treats this as optional — empty value just records an anonymous scan.
+  if (person && person.trim()) {
+    formData.append("person", person.trim());
+  }
 
   return new Promise<BiomarkerResponse>((resolve, reject) => {
     const xhr = new XMLHttpRequest();

@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { usePerson } from "../hooks/usePerson";
 import { useScan } from "../hooks/useScan";
 import { overallStatus } from "../lib/status";
 import { ActionButtons } from "./ActionButtons";
 import { BodyFigure } from "./BodyFigure";
-import { ConditionRiskPanel } from "./ConditionRiskPanel";
 import { MetricCard } from "./MetricCard";
 import { ScanHeader } from "./ScanHeader";
 import { ScanProgress } from "./ScanProgress";
@@ -11,6 +11,7 @@ import { WebcamCapture } from "./WebcamCapture";
 
 export function Dashboard() {
   const { data, loading, error, lastScanAt, progress, runMockScan, runVideoScan } = useScan();
+  const { person, setPerson } = usePerson();
   const [showWebcam, setShowWebcam] = useState(false);
 
   const biomarkers = data?.biomarkers ?? null;
@@ -23,6 +24,8 @@ export function Dashboard() {
         lastScanAt={lastScanAt}
         loading={loading}
         error={error}
+        person={person}
+        onPersonChange={setPerson}
       />
 
       {error && (
@@ -53,27 +56,32 @@ export function Dashboard() {
             <>
               <MetricCard
                 label="Heart rate"
-                value={biomarkers.heart_rate}
+                value={biomarkers.heart_rate.value}
                 unit="bpm"
                 kind="heart_rate"
+                confidence={biomarkers.heart_rate.confidence}
               />
               <MetricCard
                 label="HRV (SDNN)"
-                value={biomarkers.hrv_sdnn}
+                value={biomarkers.hrv_sdnn.value}
                 unit="ms"
                 kind="hrv"
+                confidence={biomarkers.hrv_sdnn.confidence}
               />
               <MetricCard
                 label="Stress index"
-                value={biomarkers.stress_index.toFixed(2)}
+                value={biomarkers.stress_index.value.toFixed(2)}
                 unit="/ 1.0"
                 kind="stress"
+                confidence={biomarkers.stress_index.confidence}
               />
               <MetricCard
                 label="Blood pressure"
-                value={`${biomarkers.blood_pressure.systolic}/${biomarkers.blood_pressure.diastolic}`}
+                value={`${biomarkers.blood_pressure.value.systolic}/${biomarkers.blood_pressure.value.diastolic}`}
                 unit=""
                 kind="bp"
+                confidence={biomarkers.blood_pressure.confidence}
+                note={biomarkers.blood_pressure.note}
               />
             </>
           ) : (
@@ -84,12 +92,13 @@ export function Dashboard() {
         </div>
       </div>
 
-      <ConditionRiskPanel biomarkers={biomarkers} />
-
       <ActionButtons
         onRescan={runMockScan}
         onScanLive={() => setShowWebcam(true)}
-        onUpload={(file) => runVideoScan(file)}
+        onUpload={async (file) => {
+          const ok = await runVideoScan(file, person);
+          if (ok) setPerson("");
+        }}
         loading={loading}
       />
 
@@ -97,7 +106,8 @@ export function Dashboard() {
         <WebcamCapture
           onCapture={async (blob) => {
             setShowWebcam(false);
-            await runVideoScan(blob);
+            const ok = await runVideoScan(blob, person);
+            if (ok) setPerson("");
           }}
           onCancel={() => setShowWebcam(false)}
         />
