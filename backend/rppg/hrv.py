@@ -113,22 +113,59 @@ def compute_stress_index(
     return float(np.clip(stress, 0.0, 1.0))
 
 
-def compute_hrv_metrics(pulse_signal: np.ndarray, fps: float) -> Tuple[float, float, int]:
+def _hrv_confidence(n_peaks: int, ibi_ms: np.ndarray, *, target_beats: int = 20) -> float:
+    """Confidence in the SDNN / stress estimate, in [0, 1].
+
+    Two factors stacked:
+      1. Beat count — SDNN is a sample standard deviation, so more beats
+         tighten the estimate. `target_beats` is the full-confidence
+         threshold (20 ≈ 40 BPM over 30 s; 25 for stress because LF/HF
+         spectral analysis needs more samples than time-domain SDNN).
+      2. IBI plausibility — if the coefficient of variation of the IBI
+         series exceeds 0.30, we're likely missing or extra-counting
+         beats. The penalty grows linearly past that, floored at 0.2 so
+         we still return *something* rather than collapse to zero.
     """
-    Full Task 3 pipeline: pulse waveform -> HRV metrics.
+    if n_peaks < 4 or len(ibi_ms) < 2:
+        return 0.0
+    base = min(1.0, n_peaks / float(target_beats))
+
+    mean_ibi = float(np.mean(ibi_ms))
+    if mean_ibi <= 1e-9:
+        return 0.0
+    cv = float(np.std(ibi_ms)) / mean_ibi
+    if cv > 0.30:
+        penalty = max(0.2, 1.0 - (cv - 0.30) * 2.0)
+        base *= penalty
+    return float(np.clip(base, 0.0, 1.0))
+
+
+def compute_hrv_metrics(
+    pulse_signal: np.ndarray, fps: float
+) -> Tuple[float, float, int, float, float]:
+    """
+    Full Task 3 pipeline: pulse waveform -> HRV metrics + per-metric confidence.
 
     Returns:
-        sdnn_ms: SDNN in milliseconds (the hrv_sdnn field in the API contract)
-        stress_index: 0.0-1.0 (the stress_index field in the API contract)
-        n_peaks: number of beats detected (useful for confidence reporting)
+        sdnn_ms:           SDNN in ms (hrv_sdnn field in API contract)
+        stress_index:      0.0–1.0 (stress_index field in API contract)
+        n_peaks:           number of beats detected (diagnostic)
+        hrv_confidence:    0–1, scales with beat count + IBI plausibility
+        stress_confidence: 0–1, stricter beat threshold than HRV because
+                           the LF/HF spectral analysis needs more samples
     """
     peaks = detect_pulse_peaks(pulse_signal, fps)
+    n = len(peaks)
 
-    if len(peaks) < 4:
-        # Not enough heartbeats detected — return safe defaults
-        return 0.0, 0.5, len(peaks)
+    if n < 4:
+        # Not enough heartbeats detected — safe defaults with zero confidence
+        return 0.0, 0.5, n, 0.0, 0.0
 
     ibi_ms = compute_ibi(peaks, fps)
     sdnn = compute_sdnn(ibi_ms)
     stress = compute_stress_index(ibi_ms)
-    return round(sdnn, 1), round(stress, 2), len(peaks)
+
+    hrv_conf = _hrv_confidence(n, ibi_ms, target_beats=20)
+    stress_conf = _hrv_confidence(n, ibi_ms, target_beats=25)
+
+    return round(sdnn, 1), round(stress, 2), n, round(hrv_conf, 2), round(stress_conf, 2)

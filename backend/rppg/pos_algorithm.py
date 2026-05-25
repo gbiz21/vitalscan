@@ -101,7 +101,7 @@ def estimate_heart_rate_fft(
     fps: float,
     low_bpm: float = 60.0,
     high_bpm: float = 210.0,
-) -> Tuple[float, np.ndarray, np.ndarray]:
+) -> Tuple[float, float, np.ndarray, np.ndarray]:
     # Tightened from 42-240 BPM after SCAMPS evaluation showed synthetic
     # facial animation dominates the FFT in the 42-60 BPM band. The 60-210
     # range covers WHO-defined normal adult resting HR through vigorous
@@ -111,6 +111,7 @@ def estimate_heart_rate_fft(
 
     Returns:
         heart_rate_bpm: estimated heart rate in BPM
+        confidence: 0–1 score from FFT-peak prominence (see _hr_confidence)
         freqs: frequency axis (for plotting / debugging)
         magnitudes: FFT magnitude spectrum
     """
@@ -131,22 +132,50 @@ def estimate_heart_rate_fft(
         raise ValueError("No frequencies found in valid HR band")
 
     valid_indices = np.where(valid)[0]
-    peak_idx = valid_indices[np.argmax(magnitudes[valid_indices])]
+    valid_mags = magnitudes[valid_indices]
+    peak_idx = valid_indices[np.argmax(valid_mags)]
     peak_freq_hz = freqs[peak_idx]
     heart_rate_bpm = peak_freq_hz * 60.0
 
-    return heart_rate_bpm, freqs, magnitudes
+    confidence = _hr_confidence(valid_mags)
+
+    return heart_rate_bpm, confidence, freqs, magnitudes
 
 
-def extract_heart_rate(rgb_signal: np.ndarray, fps: float) -> Tuple[float, np.ndarray]:
+def _hr_confidence(valid_mags: np.ndarray) -> float:
+    """Confidence in the FFT-derived heart rate, in [0, 1].
+
+    Heuristic: how dominant is the peak inside the HR band?
+      ratio = peak_magnitude / mean_magnitude_in_band
+
+    A clean pulse signal produces a sharp peak (ratio >> 1) above a flat
+    noise floor. A noisy / motion-corrupted signal produces a peak only
+    marginally above the mean. We map:
+        ratio = 1.5  →  confidence = 0.0   (peak barely above noise)
+        ratio = 5.5  →  confidence = 1.0   (sharp dominant peak)
+    Linear in between, clipped to [0, 1].
+    """
+    if len(valid_mags) == 0:
+        return 0.0
+    peak = float(np.max(valid_mags))
+    mean = float(np.mean(valid_mags))
+    if mean <= 1e-9:
+        return 0.0
+    ratio = peak / mean
+    confidence = (ratio - 1.5) / 4.0
+    return float(np.clip(confidence, 0.0, 1.0))
+
+
+def extract_heart_rate(rgb_signal: np.ndarray, fps: float) -> Tuple[float, float, np.ndarray]:
     """
     Full Task 2 pipeline: RGB time-series -> heart rate.
 
     Returns:
         heart_rate_bpm: estimated heart rate
+        hr_confidence: 0–1, derived from FFT-peak prominence
         filtered_pulse: the bandpass-filtered pulse waveform (used by Task 3)
     """
     pulse = pos_algorithm(rgb_signal, fps)
     filtered = butter_bandpass(pulse, fps)
-    heart_rate_bpm, _, _ = estimate_heart_rate_fft(filtered, fps)
-    return heart_rate_bpm, filtered
+    heart_rate_bpm, hr_confidence, _, _ = estimate_heart_rate_fft(filtered, fps)
+    return heart_rate_bpm, hr_confidence, filtered

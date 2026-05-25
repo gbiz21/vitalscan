@@ -4,17 +4,18 @@ Full rPPG pipeline integration.
 Wires Tasks 1, 2, and 3 together into a single function the API endpoint
 can call with a video file path.
 
-Note on blood pressure: classical rPPG cannot directly measure blood pressure
-without calibration against a cuff measurement. For this project we either:
-  a) Use mock BP values from `mock.py`
-  b) Estimate BP from a model trained on MCD-rPPG (Task 5 stretch goal)
-  c) Skip BP and let the user provide it manually
+Each biomarker is returned as a {value, confidence, unit} object — the
+contract Group 1 agreed on with the professor on the 2026-05-25 review.
+Confidence is in [0, 1]: higher = more trust the downstream consumer
+(Group 3 risk analysis) should place in the value.
 
-The current implementation uses mock BP — flag this clearly in the writeup.
+Note on blood pressure: classical rPPG cannot directly measure blood
+pressure without calibration against a cuff measurement. We return a
+mocked BP value with confidence = 0.0 so downstream consumers can
+distinguish it from real measurements.
 """
 
-from dataclasses import dataclass, asdict
-from typing import Optional
+from dataclasses import dataclass
 
 from .face_detection import FaceROIExtractor
 from .hrv import compute_hrv_metrics
@@ -22,24 +23,59 @@ from .pos_algorithm import extract_heart_rate
 from .mock import generate_mock_biomarkers
 
 
+# Confidence reported for the mocked blood-pressure value. We could set
+# this to 0.0 to make it dead-obvious it isn't measured, but Group 3
+# downstream wants *some* signal — so we report a small floor (0.10) and
+# tag the field with a `note` that flags the placeholder.
+BLOOD_PRESSURE_CONFIDENCE_FLOOR = 0.10
+BLOOD_PRESSURE_NOTE = (
+    "Classical rPPG cannot derive BP without a cuff calibration reference — "
+    "value is a clinically plausible placeholder, not a measurement."
+)
+
+
 @dataclass
 class BiomarkerResult:
-    """Matches the shared API contract from the project brief."""
+    """Matches the {value, confidence} contract agreed with the professor on 2026-05-25."""
     heart_rate: int
-    hrv_sdnn: int
+    heart_rate_confidence: float
+
+    hrv_sdnn: float
+    hrv_confidence: float
+
     stress_index: float
+    stress_confidence: float
+
     blood_pressure_systolic: int
     blood_pressure_diastolic: int
+    blood_pressure_confidence: float = BLOOD_PRESSURE_CONFIDENCE_FLOOR
 
     def to_contract_dict(self) -> dict:
         return {
             "biomarkers": {
-                "heart_rate": self.heart_rate,
-                "hrv_sdnn": self.hrv_sdnn,
-                "stress_index": self.stress_index,
+                "heart_rate": {
+                    "value": self.heart_rate,
+                    "confidence": self.heart_rate_confidence,
+                    "unit": "bpm",
+                },
+                "hrv_sdnn": {
+                    "value": self.hrv_sdnn,
+                    "confidence": self.hrv_confidence,
+                    "unit": "ms",
+                },
+                "stress_index": {
+                    "value": self.stress_index,
+                    "confidence": self.stress_confidence,
+                    "unit": "score",  # 0–1
+                },
                 "blood_pressure": {
-                    "systolic": self.blood_pressure_systolic,
-                    "diastolic": self.blood_pressure_diastolic,
+                    "value": {
+                        "systolic": self.blood_pressure_systolic,
+                        "diastolic": self.blood_pressure_diastolic,
+                    },
+                    "confidence": self.blood_pressure_confidence,
+                    "unit": "mmHg",
+                    "note": BLOOD_PRESSURE_NOTE,
                 },
             }
         }
@@ -47,12 +83,13 @@ class BiomarkerResult:
 
 def run_pipeline(video_path: str) -> BiomarkerResult:
     """
-    Full Group 1 pipeline: video file -> biomarkers.
+    Full Group 1 pipeline: video file -> biomarkers + per-biomarker confidence.
 
     Stages:
         1. Face detection + ROI extraction (Task 1)
-        2. POS algorithm + bandpass + FFT (Task 2)
-        3. HRV + stress index (Task 3)
+        2. POS algorithm + bandpass + FFT (Task 2 — returns HR confidence)
+        3. HRV + stress index (Task 3 — returns HRV/stress confidence)
+        4. Blood pressure placeholder (mocked, flagged with low confidence)
 
     Raises:
         IOError: if the video can't be opened
@@ -65,20 +102,27 @@ def run_pipeline(video_path: str) -> BiomarkerResult:
     finally:
         extractor.close()
 
-    # Stage 2: POS + bandpass + FFT -> heart rate + filtered pulse
-    heart_rate_bpm, filtered_pulse = extract_heart_rate(rgb_series, fps)
+    # Stage 2: POS + bandpass + FFT -> heart rate + filtered pulse + HR confidence
+    heart_rate_bpm, hr_confidence, filtered_pulse = extract_heart_rate(rgb_series, fps)
 
-    # Stage 3: peak detection -> IBI -> SDNN + stress
-    sdnn_ms, stress_index, _ = compute_hrv_metrics(filtered_pulse, fps)
+    # Stage 3: peak detection -> IBI -> SDNN + stress (each with its own confidence)
+    sdnn_ms, stress_index, _n_peaks, hrv_conf, stress_conf = compute_hrv_metrics(
+        filtered_pulse, fps
+    )
 
-    # Blood pressure is not derivable from rPPG without calibration —
-    # use mock values for now and document this in the writeup
-    mock = generate_mock_biomarkers()["biomarkers"]["blood_pressure"]
+    # Stage 4: Blood pressure — placeholder, can't derive from classical rPPG
+    mock_bp = generate_mock_biomarkers()["biomarkers"]["blood_pressure"]["value"]
 
     return BiomarkerResult(
         heart_rate=int(round(heart_rate_bpm)),
-        hrv_sdnn=int(round(sdnn_ms)),
+        heart_rate_confidence=round(hr_confidence, 2),
+
+        hrv_sdnn=float(sdnn_ms),
+        hrv_confidence=round(hrv_conf, 2),
+
         stress_index=float(stress_index),
-        blood_pressure_systolic=mock["systolic"],
-        blood_pressure_diastolic=mock["diastolic"],
+        stress_confidence=round(stress_conf, 2),
+
+        blood_pressure_systolic=mock_bp["systolic"],
+        blood_pressure_diastolic=mock_bp["diastolic"],
     )

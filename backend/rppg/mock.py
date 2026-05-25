@@ -1,9 +1,9 @@
 """
 Mock biomarker data generator for Phase 1/2 development.
 
-Lets the frontend and Groups 3+4 develop against realistic data before the
-real rPPG pipeline is finished. Returns slightly-randomized values around
-clinically plausible means so each "scan" feels different.
+Emits the same `{value, confidence, unit}` per-biomarker shape the real
+rPPG pipeline returns (agreed with the professor on 2026-05-25), so the
+frontend, Groups 3 + 4, and demo mode all see one contract.
 """
 
 import random
@@ -24,14 +24,36 @@ def generate_mock_biomarkers() -> dict:
     systolic = random.randint(125, 145)
     diastolic = random.randint(80, 92)
 
+    # Mock confidences chosen to look like "good but not perfect" measurements
+    # so the UI's confidence-pill renders meaningfully during demos.
     return {
         "biomarkers": {
-            "heart_rate": heart_rate,
-            "hrv_sdnn": hrv_sdnn,
-            "stress_index": stress_index,
+            "heart_rate": {
+                "value": heart_rate,
+                "confidence": round(random.uniform(0.78, 0.94), 2),
+                "unit": "bpm",
+            },
+            "hrv_sdnn": {
+                "value": hrv_sdnn,
+                "confidence": round(random.uniform(0.70, 0.88), 2),
+                "unit": "ms",
+            },
+            "stress_index": {
+                "value": stress_index,
+                "confidence": round(random.uniform(0.65, 0.85), 2),
+                "unit": "score",
+            },
             "blood_pressure": {
-                "systolic": systolic,
-                "diastolic": diastolic,
+                "value": {
+                    "systolic": systolic,
+                    "diastolic": diastolic,
+                },
+                "confidence": 0.10,
+                "unit": "mmHg",
+                "note": (
+                    "Classical rPPG cannot derive BP without a cuff calibration "
+                    "reference — value is a clinically plausible placeholder."
+                ),
             },
         }
     }
