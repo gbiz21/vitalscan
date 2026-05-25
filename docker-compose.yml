@@ -8,6 +8,13 @@ services:
       # want the real rPPG pipeline to run instead of returning mock data.
       VITALSCAN_USE_MOCK: ${VITALSCAN_USE_MOCK:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalscan.bkre8tive.com}
+    volumes:
+      # Mount the precomputed sample biomarkers so GET /biomarkers works.
+      # Small (~14 KB), updateable without rebuild.
+      - ./data/sample_biomarkers.json:/app/data/sample_biomarkers.json:ro
+      # Writable scan log — persists POST /scan results across container restarts
+      # so Groups 3+4 can GET /scans for results performed by other users.
+      - ./data/scan_history.json:/app/data/scan_history.json
     networks:
       - vitalscan-internal
 
