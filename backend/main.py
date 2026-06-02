@@ -59,6 +59,7 @@ MAX_VIDEO_SIZE_MB = 100
 
 
 @app.get("/")
+@app.get("/health")
 def health_check():
     return {
         "service": "vitalscan-group1",

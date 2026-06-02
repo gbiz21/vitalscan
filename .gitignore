@@ -39,6 +39,10 @@ datasets/
 !data/compare_pos_chrom_*.csv
 !data/eval_*.csv
 
+# …and keep the scan history starter so docker compose can bind-mount it
+# as a file (not auto-create as a directory) on a fresh clone.
+!data/scan_history.json
+
 # Models
 *.pt
 *.pth

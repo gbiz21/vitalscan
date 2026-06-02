@@ -41,7 +41,7 @@ The biomarker JSON matches the shared API contract from the project brief:
 |---|---|---|---|
 | 1 | Working demo — notebook that takes a 30 s video → biomarker JSON | [`demo.ipynb`](demo.ipynb) | ✅ |
 | 2 | Accuracy report — MAE / RMSE table vs. baseline | [`docs/evaluation_results.md`](docs/evaluation_results.md) · raw CSVs in [`data/compare_pos_chrom_*.csv`](data/) | ✅ |
-| 3 | Technical writeup (2–3 pages) — signal-chain explanation | [`docs/technical_writeup.md`](docs/technical_writeup.md) | ✅ |
+| 3 | Technical writeup — end-to-end signal-chain explanation | [`docs/VitalScan_End_to_End_Walkthrough.docx`](docs/VitalScan_End_to_End_Walkthrough.docx) (source: [`.md`](docs/VitalScan_End_to_End_Walkthrough.md)) | ✅ |
 | 4 | REST API `/scan` POST endpoint | [`backend/main.py`](backend/main.py) · live at https://vitalscan.bkre8tive.com | ✅ |
 | 5 | _Stretch_ — deep-learning comparison vs classical | future work — scaffolding in place, not executed | — |
 
