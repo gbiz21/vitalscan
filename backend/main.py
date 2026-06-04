@@ -2,11 +2,12 @@
 VitalScan Group 1 — FastAPI server
 
 Endpoints:
-  GET  /              health check
-  POST /scan          run rPPG pipeline on uploaded video, persist + return biomarkers
-  POST /scan/mock     mock biomarkers (no video required) — frontend dev path
-  GET  /biometrics    list every scan ever performed, newest first, one entry per scan
-                      (Groups 3+4 hit this — filter client-side by the `person` field)
+  GET  /                  health check
+  POST /scan              run rPPG pipeline on uploaded video, persist + return biomarkers
+  POST /scan/mock         mock biomarkers (no video required) — frontend dev path
+  GET  /biometrics        list every scan ever performed, newest first, one entry per scan
+                          (Groups 3+4 hit this — filter by the `person` query param)
+  GET  /scans/{scan_id}   retrieve a single scan by its ID (returned in the POST /scan response)
 """
 
 import os
@@ -79,7 +80,7 @@ async def scan(
     The frontend posts a 30-second facial video here. Returns JSON matching
     the shared API contract from the project brief, plus a generated
     `scan_id` and `timestamp` so Groups 3+4 can retrieve the same result
-    later via GET /scans/{scan_id}.
+    later via GET /scans/{scan_id} (see that route below).
 
     Optional `person` form field lets the requester tag their scan
     (e.g. "Daray test #3") — never required, never persisted as PII.
@@ -163,7 +164,11 @@ def scan_mock_post():
 
 
 @app.get("/biometrics")
-def list_biometrics(limit: int = 200, person: str | None = None):
+def list_biometrics(
+    limit: int = 200,
+    person: str | None = None,
+    scan_id: str | None = None,
+):
     """The one endpoint Groups 3+4 hit — every scan, newest first.
 
     Each entry is one scan, in this shape:
@@ -182,10 +187,27 @@ def list_biometrics(limit: int = 200, person: str | None = None):
         }
 
     Optional query params:
-      ?person={name}  — filter to one person (server-side convenience)
-      ?limit={N}      — cap the number of entries returned (default 200)
+      ?person={name}    — filter to one person (server-side convenience)
+      ?scan_id={id}     — filter to a single scan by its ID (0 or 1 entry returned)
+      ?limit={N}        — cap the number of entries returned (default 200)
     """
     scans = scan_history.list_scans(limit=max(1, min(limit, 500)))
     if person is not None:
         scans = [s for s in scans if (s.get("person") or "").lower() == person.lower()]
+    if scan_id is not None:
+        scans = [s for s in scans if s.get("scan_id") == scan_id]
     return {"count": len(scans), "scans": scans}
+
+
+@app.get("/scans/{scan_id}")
+def get_scan_by_id(scan_id: str):
+    """Retrieve a single scan by its ID — the path Groups 3+4 use to fetch
+    back one specific result (the `scan_id` returned in the POST /scan response).
+
+    Returns 404 if no scan with that ID exists. Same entry shape as the
+    items in GET /biometrics.
+    """
+    entry = scan_history.get_scan(scan_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No scan found with id {scan_id}")
+    return entry
