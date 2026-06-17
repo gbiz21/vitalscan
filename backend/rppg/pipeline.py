@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from .face_detection import FaceROIExtractor
 from .hrv import compute_hrv_metrics
 from .pos_algorithm import extract_heart_rate
+from .chrom_baseline import extract_heart_rate_chrom
 from .mock import generate_mock_biomarkers
 
 
@@ -102,8 +103,22 @@ def run_pipeline(video_path: str) -> BiomarkerResult:
     finally:
         extractor.close()
 
-    # Stage 2: POS + bandpass + FFT -> heart rate + filtered pulse + HR confidence
-    heart_rate_bpm, hr_confidence, filtered_pulse = extract_heart_rate(rgb_series, fps)
+    # Stage 2: POS + bandpass + FFT -> heart rate + filtered pulse + HR confidence.
+    #
+    # Week 7 refinement: report the AVERAGE of the POS and CHROM heart-rate
+    # estimates rather than POS alone. The Week 6 calibration study
+    # (docs/Week6_Model_Training_and_Testing.md) showed, via LOOCV on the
+    # 42-subject UBFC set, that averaging the two independent classical
+    # estimators lowers MAE from 4.06 BPM (POS-only) to 3.94 BPM — and beats
+    # every trained calibrator we tested. It is a zero-parameter, no-overfit
+    # optimization, so we adopt it as the production estimator here.
+    #
+    # We keep POS's filtered pulse for HRV/stress (Stage 3) and POS's
+    # peak-dominance confidence for the heart-rate value: CHROM only refines
+    # the reported BPM, it does not replace the downstream time-domain signal.
+    pos_bpm, hr_confidence, filtered_pulse = extract_heart_rate(rgb_series, fps)
+    chrom_bpm, _chrom_pulse = extract_heart_rate_chrom(rgb_series, fps)
+    heart_rate_bpm = 0.5 * (pos_bpm + chrom_bpm)
 
     # Stage 3: peak detection -> IBI -> SDNN + stress (each with its own confidence)
     sdnn_ms, stress_index, _n_peaks, hrv_conf, stress_conf = compute_hrv_metrics(

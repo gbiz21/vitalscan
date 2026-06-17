@@ -73,5 +73,5 @@ def extract_heart_rate_chrom(
     alpha = np.std(xs_bp) / (np.std(ys_bp) + 1e-9)
     pulse = xs_bp - alpha * ys_bp
 
-    heart_rate_bpm, _, _ = estimate_heart_rate_fft(pulse, fps)
+    heart_rate_bpm, _, _, _ = estimate_heart_rate_fft(pulse, fps)
     return heart_rate_bpm, pulse
