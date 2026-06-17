@@ -7,10 +7,12 @@ services:
       # Set to "false" once SCAMPS/UBFC data is staged on the host and you
       # want the real rPPG pipeline to run instead of returning mock data.
       VITALSCAN_USE_MOCK: ${VITALSCAN_USE_MOCK:-true}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://vitalscan.bkre8tive.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    ports:
+      # Direct API access on the host (e.g. curl http://localhost:8000/biometrics)
+      - "8000:8000"
     volumes:
-      # Writable scan log — persists POST /scan results across container restarts
-      # so Groups 3+4 can GET /biometrics for results performed by other users.
+      # Writable scan log — persists POST /scan results across container restarts.
       # Committed as `{"scans": []}` so a fresh clone doesn't bind-mount a directory.
       - ./data/scan_history.json:/app/data/scan_history.json
     networks:
@@ -22,28 +24,9 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    networks:
-      - vitalscan-internal
-
-  # Named Cloudflare Tunnel publishing https://vitalscan.bkre8tive.com.
-  # Tunnel UUID and ingress rules live in deploy/cloudflared/config.yml.
-  # The matching credentials JSON (TunnelSecret) is gitignored — copy it
-  # to deploy/cloudflared/ on the homelab via scp before bringing the stack
-  # up. See DEPLOY.md.
-  #
-  # Gated behind the `production` profile so a fresh `docker compose up` for
-  # local dev doesn't try to start the tunnel without credentials. Bring it
-  # up on the homelab with: `docker compose --profile production up -d`.
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: vitalscan-cloudflared
-    restart: unless-stopped
-    profiles: ["production"]
-    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./deploy/cloudflared:/etc/cloudflared:ro
-    depends_on:
-      - frontend
+    ports:
+      # Dashboard on http://localhost:8080 ; nginx proxies /api/* to the backend
+      - "8080:80"
     networks:
       - vitalscan-internal
 

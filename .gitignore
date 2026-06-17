@@ -16,8 +16,10 @@ dist/
 .env
 .env.local
 
-# Cloudflare tunnel credentials (contains TunnelSecret — never commit)
-deploy/cloudflared/*.json
+# Homelab deployment — private infra (Cloudflare tunnel, OPNsense, Traefik,
+# internal IPs). Not needed to run locally; kept out of the public repo.
+deploy/
+DEPLOY.md
 
 # IDE
 .vscode/
@@ -27,6 +29,10 @@ deploy/cloudflared/*.json
 
 # PowerPoint / Word lockfiles (auto-created while a doc is open)
 ~$*
+
+# Course deliverables / reports — kept local, submitted via Moodle, not
+# shipped to GitHub so the public repo stays a clean clone-and-run project.
+docs/
 
 # Datasets (too large to commit) — exclude everything under data/ by default…
 data/*
@@ -50,3 +56,6 @@ datasets/
 
 # Logs
 *.log
+
+# local firewall API creds (do not commit)
+.firewall.env

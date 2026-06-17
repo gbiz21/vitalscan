@@ -1,7 +1,0 @@
-tunnel: 86a4bbcd-b804-43a4-ae07-4daaf718bfb7
-credentials-file: /etc/cloudflared/86a4bbcd-b804-43a4-ae07-4daaf718bfb7.json
-
-ingress:
-  - hostname: vitalscan.bkre8tive.com
-    service: http://vitalscan-frontend:80
-  - service: http_status:404

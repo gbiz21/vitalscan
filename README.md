@@ -1,12 +1,14 @@
-# VitalScan — Group 1 (rPPG Signal Extraction)
+# VitalScan — rPPG Signal Extraction (Group 1)
 
-AIT 500 Course Project · Westcliff University · Group 1
+> **Academic class project for AIT 500 at Westcliff University — Group 1.**
+> Built for coursework and demonstration only. **Not a medical device** and not
+> for clinical or diagnostic use.
 
-**Live:** https://vitalscan.bkre8tive.com — published via a named Cloudflare Tunnel from the homelab.
+A Python rPPG pipeline that extracts heart rate, HRV, and a stress index from a
+30-second facial video, exposed as a FastAPI `/scan` endpoint and consumed by a
+React dashboard. Designed to **clone and run locally** — see [Quick start](#quick-start-local-dev) below.
 
-This repo contains the full Group 1 deliverable: a Python rPPG pipeline that
-extracts heart rate, HRV, and stress index from a 30-second facial video,
-exposed as a FastAPI `/scan` endpoint, and consumed by a React dashboard.
+**Live demo (optional):** https://vitalscan.bkre8tive.com
 
 ## Architecture
 
@@ -40,14 +42,14 @@ The biomarker JSON matches the shared API contract from the project brief:
 | # | Deliverable (per project brief) | Where to find it | Status |
 |---|---|---|---|
 | 1 | Working demo — notebook that takes a 30 s video → biomarker JSON | [`demo.ipynb`](demo.ipynb) | ✅ |
-| 2 | Accuracy report — MAE / RMSE table vs. baseline | [`docs/evaluation_results.md`](docs/evaluation_results.md) · raw CSVs in [`data/compare_pos_chrom_*.csv`](data/) | ✅ |
-| 3 | Technical writeup — end-to-end signal-chain explanation | [`docs/VitalScan_End_to_End_Walkthrough.docx`](docs/VitalScan_End_to_End_Walkthrough.docx) (source: [`.md`](docs/VitalScan_End_to_End_Walkthrough.md)) | ✅ |
-| 4 | REST API `/scan` POST endpoint | [`backend/main.py`](backend/main.py) · live at https://vitalscan.bkre8tive.com | ✅ |
-| 5 | _Stretch_ — deep-learning comparison vs classical | future work — scaffolding in place, not executed | — |
+| 2 | Accuracy report — MAE / RMSE table vs. baseline | raw CSVs in [`data/compare_pos_chrom_*.csv`](data/) | ✅ |
+| 3 | REST API `/scan` POST endpoint | [`backend/main.py`](backend/main.py) · runs locally (see Quick start) | ✅ |
+| 4 | _Stretch_ — deep-learning comparison vs classical | future work — scaffolding in place, not executed | — |
 
-Architecture figures referenced from the writeup:
-- [`docs/figures/figure1-signal-chain.svg`](docs/figures/figure1-signal-chain.svg) — rPPG pipeline (Tasks 1–3)
-- [`docs/figures/figure2-architecture.svg`](docs/figures/figure2-architecture.svg) — deployment / data flow
+> The full written reports, figures, and slide decks are course deliverables
+> submitted through the LMS and are intentionally **not** included in this
+> public repo (`docs/` is git-ignored) so the repository stays a clean
+> clone-and-run project.
 
 **Headline accuracy** (POS, our algorithm): **UBFC-rPPG MAE = 4.06 BPM on 42 real human subjects** — median absolute error 1.05 BPM, 90 % of subjects within ±10 BPM. CHROM baseline scores 3.86 BPM MAE on the same set (statistically tied). Both classical algorithms clear the rubric's < 10 BPM target.
 
@@ -58,8 +60,29 @@ Architecture figures referenced from the writeup:
 | 1     | ✅     | React UI with mock biomarker data                     |
 | 2     | ✅     | FastAPI backend with mock `/scan` endpoint            |
 | 3     | ✅     | Real rPPG pipeline (POS + CHROM, evaluated on UBFC + SCAMPS) |
-| 4     | ✅     | Docker + Cloudflare Tunnel deployment (live)          |
+| 4     | ✅     | Dockerized — full stack runs locally with one command |
 | 5     | ✅     | Browser webcam capture                                |
+
+## Datasets (download separately)
+
+The video datasets are **not** committed (tens of GB — `data/` is git-ignored).
+You do **not** need them just to run the app: by default the backend serves
+mock data, and you can run a real scan on **any** webcam recording or video
+file you upload. Download the research datasets only if you want to reproduce
+the accuracy numbers.
+
+| Dataset | Role | Size | Source |
+|---|---|---|---|
+| **UBFC-rPPG** (Bobbia et al. 2019) | 42 real subjects — headline MAE validation | ~75 GB | Request access on the authors' page: https://sites.google.com/view/ybenezeth/ubfcrppg |
+| **SCAMPS** (McDuff et al. 2022) | 10 synthetic CGI subjects — stress test | ~1.2 GB | `curl -L -o scamps.tar.gz https://facesyntheticspubwedata.z6.web.core.windows.net/neurips-2022/scamps_videos_example.tar.gz` |
+
+Place the extracted folders under `data/` (e.g. `data/ubfc_full`, `data/scamps_videos_example`) and reproduce with:
+
+```bash
+backend/venv312/bin/python -m rppg.evaluation --dataset data/ubfc_full --output data/eval_ubfc_full.csv
+```
+
+The pre-computed result CSVs (`data/compare_pos_chrom_*.csv`, `data/eval_*.csv`) **are** committed, so you can read the numbers without downloading anything.
 
 ## Quick start (local dev)
 
@@ -90,23 +113,19 @@ By default the backend returns mock data (`VITALSCAN_USE_MOCK=true`). To run
 the real rPPG pipeline on uploaded/recorded video, set `VITALSCAN_USE_MOCK=false`
 when starting uvicorn.
 
-## Quick start (Docker, for homelab deploy)
+## Quick start (Docker)
 
-Production: **https://vitalscan.bkre8tive.com** — published via a named
-Cloudflare Tunnel from the homelab. No public IP, no port forwarding,
-TLS terminated at the Cloudflare edge. Full step-by-step in [DEPLOY.md](DEPLOY.md).
+Run the whole stack locally with one command:
 
 ```bash
-# On the homelab host, after rsync of the repo + scp of the tunnel
-# credentials JSON to deploy/cloudflared/:
-docker compose up -d --build
-docker compose logs -f cloudflared    # watch for "Registered tunnel connection"
+docker compose up --build
 ```
 
-The `docker-compose.yml` runs three services (backend, frontend, cloudflared)
-on an internal bridge network. The `cloudflared` service mounts
-`deploy/cloudflared/config.yml` (tunnel UUID + ingress rule) and the
-matching credentials JSON (gitignored, copied separately).
+- Dashboard: http://localhost:8080
+- API: http://localhost:8000 (e.g. `curl http://localhost:8000/biometrics`)
+
+The frontend (nginx) proxies `/api/*` to the backend. Mock mode is on by
+default; set `VITALSCAN_USE_MOCK=false` to run the real rPPG pipeline.
 
 ## Project structure
 
@@ -129,12 +148,7 @@ vitalscan/
 │   │   ├── evaluation.py       Task 4 — MAE/RMSE on SCAMPS
 │   │   └── mock.py             Mock data generator
 │   └── Dockerfile
-├── deploy/
-│   └── cloudflared/
-│       ├── config.yml          Tunnel UUID + ingress rule (committed)
-│       └── <UUID>.json         TunnelSecret credentials (gitignored)
-├── docker-compose.yml          backend + frontend + cloudflared
-└── DEPLOY.md                   Three-command homelab deploy
+└── docker-compose.yml          backend + frontend (local stack)
 ```
 
 ## Group 1 team & task ownership
@@ -147,7 +161,7 @@ vitalscan/
 | 4. Evaluation       | `backend/rppg/evaluation.py`             | Abner    |
 | Dataset retrieval   | UBFC-rPPG · SCAMPS examples              | Jason    |
 | API + frontend      | `backend/main.py` + `frontend/`          | Germaine |
-| Deployment          | `docker-compose.yml` + Cloudflare Tunnel | Germaine |
+| Local Docker stack  | `docker-compose.yml`                     | Germaine |
 
 ## License
 
